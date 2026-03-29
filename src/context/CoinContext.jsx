@@ -14,51 +14,34 @@ export const CoinContextProvider = ({ children }) => {
       : { name: "usd", symbol: "$" };
   });
 
-  // 🚀 MAIN FETCH FUNCTION
+  // 🚀 FETCH FROM COINPAPRIKA
   const fetchAllCoins = async () => {
     try {
       setLoading(true);
 
-      // 🟢 TRY COINCAP FIRST
-      const res = await fetch("https://api.coincap.io/v2/assets");
+      const res = await fetch("https://api.coinpaprika.com/v1/tickers");
 
-      if (!res.ok) {
-        throw new Error("CoinCap failed");
-      }
+      if (!res.ok) throw new Error("API error");
 
-      const result = await res.json();
+      const data = await res.json();
 
-      const formattedData = result.data.slice(0, 50).map((coin) => ({
+      // ✅ Format data for your UI
+      const formattedData = data.slice(0, 50).map((coin) => ({
         id: coin.id,
         name: coin.name,
         symbol: coin.symbol,
-        current_price: Number(coin.priceUsd),
-        market_cap: Number(coin.marketCapUsd),
-        price_change_percentage_24h: Number(coin.changePercent24Hr),
+        current_price: coin.quotes.USD.price,
+        market_cap: coin.quotes.USD.market_cap,
+        price_change_percentage_24h: coin.quotes.USD.percent_change_24h,
 
-        // 💎 Logo workaround
-        image: `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`
+        // 🔥 Logo (external API)
+        image: `https://cryptoicon-api.vercel.app/api/icon/${coin.symbol.toLowerCase()}`
       }));
 
       setCoins(formattedData);
 
     } catch (error) {
-
-      console.warn("CoinCap failed, switching to CoinGecko:", error);
-
-      // 🔴 FALLBACK TO COINGECKO (via proxy)
-      try {
-        const res = await fetch(
-          `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
-        );
-
-        const data = await res.json();
-        setCoins(data);
-
-      } catch (err) {
-        console.error("Both APIs failed:", err);
-      }
-
+      console.error("CoinPaprika Error:", error);
     } finally {
       setLoading(false);
     }
@@ -78,7 +61,7 @@ export const CoinContextProvider = ({ children }) => {
     allCoins,
     currency,
     setCurrency,
-    loading
+    loading,
   };
 
   return (
