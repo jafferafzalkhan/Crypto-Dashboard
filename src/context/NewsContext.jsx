@@ -20,7 +20,7 @@ export const NewsProvider = ({ children }) => {
       }
 
       const res = await fetch(
-        `https://gnews.io/api/v4/search?q=crypto&lang=en&apikey=YOUR_API_KEY`
+        `https://gnews.io/api/v4/search?q=crypto&lang=en&apikey=bc7f5c473daa40a5066b9c9413a80823`
       );
 
       const data = await res.json();
