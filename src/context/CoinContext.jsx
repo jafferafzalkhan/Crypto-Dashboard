@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect } from "react";
 export const CoinContext = createContext();
 
 export const CoinContextProvider = ({ children }) => {
+
   const [allCoins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,70 +14,40 @@ export const CoinContextProvider = ({ children }) => {
       : { name: "usd", symbol: "$" };
   });
 
-  // 🚀 FETCH WITH CACHE + RETRY + RATE LIMIT HANDLING
+  // 🚀 CoinCap Fetch
   const fetchAllCoins = async () => {
     try {
       setLoading(true);
 
-      const cache = JSON.parse(localStorage.getItem("coinsCache"));
+      const res = await fetch("https://api.coincap.io/v2/assets");
+      const result = await res.json();
 
-      // ✅ Use cache (2 min)
-      if (cache && Date.now() - cache.time < 2 * 60 * 1000) {
-        setCoins(cache.data);
-        setLoading(false);
-        return;
-      }
+      // ✅ Map CoinCap data → your format
+      const formattedData = result.data.slice(0, 50).map((coin) => ({
+        id: coin.id,
+        name: coin.name,
+        symbol: coin.symbol,
+        current_price: parseFloat(coin.priceUsd),
+        market_cap: parseFloat(coin.marketCapUsd),
+        price_change_percentage_24h: parseFloat(coin.changePercent24Hr),
 
-      let retryAfter = 0;
+        // 🔥 Logo workaround
+        image: `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`
+      }));
 
-      while (true) {
-        if (retryAfter > 0) {
-          console.warn(`Retrying after ${retryAfter}s`);
-          await new Promise((res) => setTimeout(res, retryAfter * 1000));
-        }
-
-        const res = await fetch(
-          `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
-        );
-
-        // 🚨 Handle rate limit
-        if (res.status === 429) {
-          retryAfter = parseInt(res.headers.get("retry-after") || "10");
-          continue;
-        }
-
-        if (!res.ok) {
-          throw new Error("API error");
-        }
-
-        const data = await res.json();
-
-        // 💾 Save cache
-        localStorage.setItem(
-          "coinsCache",
-          JSON.stringify({
-            data,
-            time: Date.now(),
-          })
-        );
-
-        setCoins(data);
-        setLoading(false);
-        break;
-      }
+      setCoins(formattedData);
+      setLoading(false);
 
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Error fetching CoinCap:", error);
       setLoading(false);
     }
   };
 
-  // 🔄 Fetch on currency change
   useEffect(() => {
     fetchAllCoins();
-  }, [currency]);
+  }, []);
 
-  // 💾 Save currency
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
@@ -85,7 +56,7 @@ export const CoinContextProvider = ({ children }) => {
     allCoins,
     currency,
     setCurrency,
-    loading,
+    loading
   };
 
   return (
