@@ -18,42 +18,61 @@ export const CoinContextProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      const res = await fetch("https://api.coinpaprika.com/v1/tickers");
+      const cache = JSON.parse(localStorage.getItem("coinsCache"));
 
-      if (!res.ok) throw new Error("API failed");
+      // ✅ CACHE (2 minutes)
+      if (cache && Date.now() - cache.time < 2 * 60 * 1000) {
+        setCoins(cache.data);
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(
+        `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
+      );
+
+      // 🚨 HANDLE RATE LIMIT
+      if (res.status === 429) {
+        console.warn("Rate limit hit — using cached data");
+
+        if (cache) {
+          setCoins(cache.data);
+        }
+
+        setLoading(false);
+        return;
+      }
 
       const data = await res.json();
 
-      // ✅ SAFE FILTER + FORMAT
-      const formattedData = data
-        .filter((coin) => coin.quotes && coin.quotes.USD) // 🔥 important fix
-        .slice(0, 50)
-        .map((coin) => ({
-          id: coin.id,
-          name: coin.name,
-          symbol: coin.symbol,
-          current_price: coin.quotes.USD.price || 0,
-          market_cap: coin.quotes.USD.market_cap || 0,
-          price_change_percentage_24h:
-            coin.quotes.USD.percent_change_24h || 0,
+      // 💾 SAVE CACHE
+      localStorage.setItem(
+        "coinsCache",
+        JSON.stringify({
+          data,
+          time: Date.now(),
+        })
+      );
 
-          // 🔥 safer logo fallback
-          image: `https://cryptoicon-api.vercel.app/api/icon/${coin.symbol.toLowerCase()}`
-        }));
-
-      setCoins(formattedData);
+      setCoins(data);
 
     } catch (error) {
-      console.error("CoinPaprika Error:", error);
+      console.error("Fetch error:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // 🔄 ONLY CALL WHEN NEEDED
   useEffect(() => {
-    fetchAllCoins();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchAllCoins();
+    }, 800); // small delay prevents spam
 
+    return () => clearTimeout(timer);
+  }, [currency]);
+
+  // 💾 Save currency
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
