@@ -20,9 +20,8 @@ export const CoinContextProvider = ({ children }) => {
 
       const cache = JSON.parse(localStorage.getItem("coinsCache"));
 
-      // ✅ USE CACHE (3 MINUTES)
+      // ✅ CACHE (3 MIN)
       if (cache && Date.now() - cache.time < 3 * 60 * 1000) {
-        console.log("Using cached data");
         setCoins(cache.data);
         setLoading(false);
         return;
@@ -32,25 +31,15 @@ export const CoinContextProvider = ({ children }) => {
         `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
-      // 🚨 HANDLE RATE LIMIT (429)
+      // 🚨 RATE LIMIT HANDLE
       if (res.status === 429) {
-        const retryAfter = res.headers.get("Retry-After");
-        console.warn(`Rate limited. Retry after ${retryAfter}s`);
-
-        // fallback to cache
-        if (cache) {
-          setCoins(cache.data);
-        }
-
+        if (cache) setCoins(cache.data);
         setLoading(false);
         return;
       }
 
-      if (!res.ok) throw new Error("API failed");
-
       const data = await res.json();
 
-      // 💾 SAVE CACHE
       localStorage.setItem(
         "coinsCache",
         JSON.stringify({
@@ -62,35 +51,23 @@ export const CoinContextProvider = ({ children }) => {
       setCoins(data);
 
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Coin Error:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔄 DELAY TO PREVENT SPAM
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchAllCoins();
-    }, 800);
-
+    const timer = setTimeout(fetchAllCoins, 800);
     return () => clearTimeout(timer);
   }, [currency]);
 
-  // 💾 SAVE CURRENCY
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
 
-  const contextValue = {
-    allCoins,
-    currency,
-    setCurrency,
-    loading,
-  };
-
   return (
-    <CoinContext.Provider value={contextValue}>
+    <CoinContext.Provider value={{ allCoins, currency, setCurrency, loading }}>
       {children}
     </CoinContext.Provider>
   );
