@@ -20,8 +20,9 @@ export const CoinContextProvider = ({ children }) => {
 
       const cache = JSON.parse(localStorage.getItem("coinsCache"));
 
-      // ✅ CACHE (2 minutes)
-      if (cache && Date.now() - cache.time < 2 * 60 * 1000) {
+      // ✅ USE CACHE (3 MINUTES)
+      if (cache && Date.now() - cache.time < 3 * 60 * 1000) {
+        console.log("Using cached data");
         setCoins(cache.data);
         setLoading(false);
         return;
@@ -31,10 +32,12 @@ export const CoinContextProvider = ({ children }) => {
         `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
-      // 🚨 HANDLE RATE LIMIT
+      // 🚨 HANDLE RATE LIMIT (429)
       if (res.status === 429) {
-        console.warn("Rate limit hit — using cached data");
+        const retryAfter = res.headers.get("Retry-After");
+        console.warn(`Rate limited. Retry after ${retryAfter}s`);
 
+        // fallback to cache
         if (cache) {
           setCoins(cache.data);
         }
@@ -42,6 +45,8 @@ export const CoinContextProvider = ({ children }) => {
         setLoading(false);
         return;
       }
+
+      if (!res.ok) throw new Error("API failed");
 
       const data = await res.json();
 
@@ -63,16 +68,16 @@ export const CoinContextProvider = ({ children }) => {
     }
   };
 
-  // 🔄 ONLY CALL WHEN NEEDED
+  // 🔄 DELAY TO PREVENT SPAM
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchAllCoins();
-    }, 800); // small delay prevents spam
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [currency]);
 
-  // 💾 Save currency
+  // 💾 SAVE CURRENCY
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
