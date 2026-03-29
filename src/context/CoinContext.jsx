@@ -13,11 +13,11 @@ export const CoinContextProvider = ({ children }) => {
       : { name: "usd", symbol: "$" };
   });
 
+  // ✅ FIXED API (uses Netlify proxy)
   const fetchAllCoins = async () => {
     try {
-
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
+        `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
       const data = await response.json();
@@ -25,17 +25,20 @@ export const CoinContextProvider = ({ children }) => {
       setCoins(data);
 
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching coins:", error);
     }
   };
 
+  // fetch when currency changes
   useEffect(() => {
     fetchAllCoins();
   }, [currency]);
 
+  // save currency
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
+
   const contextValue = {
     allCoins,
     currency,
