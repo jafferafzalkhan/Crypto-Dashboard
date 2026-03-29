@@ -13,14 +13,31 @@ export const CoinContextProvider = ({ children }) => {
       : { name: "usd", symbol: "$" };
   });
 
-  // ✅ FIXED API (uses Netlify proxy)
+  // ✅ OPTIMIZED FETCH (CORS FIX + CACHE + 429 FIX)
   const fetchAllCoins = async () => {
     try {
+      const cache = JSON.parse(localStorage.getItem("coinsCache"));
+
+      // ⏱️ Cache valid for 2 minutes
+      if (cache && Date.now() - cache.time < 2 * 60 * 1000) {
+        setCoins(cache.data);
+        return;
+      }
+
       const response = await fetch(
         `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
       const data = await response.json();
+
+      // 💾 Save to cache
+      localStorage.setItem(
+        "coinsCache",
+        JSON.stringify({
+          data,
+          time: Date.now(),
+        })
+      );
 
       setCoins(data);
 
@@ -29,12 +46,16 @@ export const CoinContextProvider = ({ children }) => {
     }
   };
 
-  // fetch when currency changes
+  // 🔄 Fetch with delay (prevents spam)
   useEffect(() => {
-    fetchAllCoins();
+    const timer = setTimeout(() => {
+      fetchAllCoins();
+    }, 1000);
+
+    return () => clearTimeout(timer);
   }, [currency]);
 
-  // save currency
+  // 💾 Save currency
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
@@ -42,7 +63,7 @@ export const CoinContextProvider = ({ children }) => {
   const contextValue = {
     allCoins,
     currency,
-    setCurrency
+    setCurrency,
   };
 
   return (
