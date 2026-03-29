@@ -5,7 +5,6 @@ export const NewsContext = createContext();
 export const NewsProvider = ({ children }) => {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const fetchNews = async () => {
     try {
@@ -13,68 +12,44 @@ export const NewsProvider = ({ children }) => {
 
       const cache = JSON.parse(localStorage.getItem("newsCache"));
 
-      // ✅ USE CACHE (5 MINUTES)
-      if (cache && Date.now() - cache.time < 5 * 60 * 1000) {
+      // ✅ CACHE 10 MIN
+      if (cache && Date.now() - cache.time < 10 * 60 * 1000) {
         setNews(cache.data);
         setLoading(false);
         return;
       }
 
-      const response = await fetch(
-        `https://newsdata.io/api/1/crypto?apikey=pub_1816f3a0faaf4c35986c2a105c2a31be`
+      const res = await fetch(
+        `https://gnews.io/api/v4/search?q=crypto&lang=en&apikey=YOUR_API_KEY`
       );
 
-      // 🚨 HANDLE RATE LIMIT
-      if (response.status === 429) {
-        console.warn("News API rate limited");
+      const data = await res.json();
 
-        if (cache) {
-          setNews(cache.data);
-        }
+      const formatted = data.articles || [];
 
-        setLoading(false);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      const results = data.results || [];
-
-      // 💾 SAVE CACHE
       localStorage.setItem(
         "newsCache",
         JSON.stringify({
-          data: results,
+          data: formatted,
           time: Date.now(),
         })
       );
 
-      setNews(results);
-      setError(null);
+      setNews(formatted);
 
     } catch (err) {
-      console.error("News error:", err);
-      setError(err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔄 DELAY TO PREVENT SPAM
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchNews();
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    fetchNews();
   }, []);
 
   return (
-    <NewsContext.Provider value={{ news, loading, error, fetchNews }}>
+    <NewsContext.Provider value={{ news, loading }}>
       {children}
     </NewsContext.Provider>
   );
