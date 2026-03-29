@@ -14,40 +14,62 @@ export const CoinContextProvider = ({ children }) => {
       : { name: "usd", symbol: "$" };
   });
 
-  // 🚀 CoinCap Fetch
+  // 🚀 MAIN FETCH FUNCTION
   const fetchAllCoins = async () => {
     try {
       setLoading(true);
 
+      // 🟢 TRY COINCAP FIRST
       const res = await fetch("https://api.coincap.io/v2/assets");
+
+      if (!res.ok) {
+        throw new Error("CoinCap failed");
+      }
+
       const result = await res.json();
 
-      // ✅ Map CoinCap data → your format
       const formattedData = result.data.slice(0, 50).map((coin) => ({
         id: coin.id,
         name: coin.name,
         symbol: coin.symbol,
-        current_price: parseFloat(coin.priceUsd),
-        market_cap: parseFloat(coin.marketCapUsd),
-        price_change_percentage_24h: parseFloat(coin.changePercent24Hr),
+        current_price: Number(coin.priceUsd),
+        market_cap: Number(coin.marketCapUsd),
+        price_change_percentage_24h: Number(coin.changePercent24Hr),
 
-        // 🔥 Logo workaround
+        // 💎 Logo workaround
         image: `https://assets.coincap.io/assets/icons/${coin.symbol.toLowerCase()}@2x.png`
       }));
 
       setCoins(formattedData);
-      setLoading(false);
 
     } catch (error) {
-      console.error("Error fetching CoinCap:", error);
+
+      console.warn("CoinCap failed, switching to CoinGecko:", error);
+
+      // 🔴 FALLBACK TO COINGECKO (via proxy)
+      try {
+        const res = await fetch(
+          `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
+        );
+
+        const data = await res.json();
+        setCoins(data);
+
+      } catch (err) {
+        console.error("Both APIs failed:", err);
+      }
+
+    } finally {
       setLoading(false);
     }
   };
 
+  // 🔄 Fetch once
   useEffect(() => {
     fetchAllCoins();
   }, []);
 
+  // 💾 Save currency
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
