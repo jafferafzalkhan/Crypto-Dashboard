@@ -1,10 +1,10 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState } from "react";
 
 export const NewsContext = createContext();
 
 export const NewsProvider = ({ children }) => {
   const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchNews = async () => {
     try {
@@ -12,9 +12,8 @@ export const NewsProvider = ({ children }) => {
 
       const cache = JSON.parse(localStorage.getItem("newsCache"));
 
-      // ✅ CACHE (15 MIN) → VERY IMPORTANT
+      // ✅ USE CACHE (15 MIN)
       if (cache && Date.now() - cache.time < 15 * 60 * 1000) {
-        console.log("Using cached news");
         setNews(cache.data);
         setLoading(false);
         return;
@@ -26,7 +25,7 @@ export const NewsProvider = ({ children }) => {
 
       // 🚨 HANDLE 429
       if (res.status === 429) {
-        console.warn("News API rate limited");
+        console.warn("Rate limited");
 
         if (cache) {
           setNews(cache.data);
@@ -58,13 +57,8 @@ export const NewsProvider = ({ children }) => {
     }
   };
 
-  // 🔄 ONLY ONCE (NO SPAM)
-  useEffect(() => {
-    fetchNews();
-  }, []);
-
   return (
-    <NewsContext.Provider value={{ news, loading }}>
+    <NewsContext.Provider value={{ news, loading, fetchNews }}>
       {children}
     </NewsContext.Provider>
   );
