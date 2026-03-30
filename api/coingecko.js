@@ -3,6 +3,15 @@ export default async function handler(req, res) {
     const url = `https://api.coingecko.com${req.url.replace('/api/coingecko', '')}`;
 
     const response = await fetch(url);
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({
+        error: "CoinGecko API error",
+        details: text,
+      });
+    }
+
     const data = await response.json();
 
     res.setHeader("Access-Control-Allow-Origin", "*");

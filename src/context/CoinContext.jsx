@@ -19,21 +19,41 @@ export const CoinContextProvider = ({ children }) => {
       setLoading(true);
       setError("");
 
-      // ✅ CACHE FIRST
-      const cachedData = localStorage.getItem(`coins_${currency.name}`);
-      if (cachedData) {
+      const cacheKey = `coins_${currency.name}`;
+      const cacheTimeKey = `${cacheKey}_time`;
+
+      const cachedData = localStorage.getItem(cacheKey);
+      const cacheTime = localStorage.getItem(cacheTimeKey);
+
+      // ✅ CACHE (5 min expiry)
+      if (
+        cachedData &&
+        cacheTime &&
+        Date.now() - cacheTime < 5 * 60 * 1000
+      ) {
         setCoins(JSON.parse(cachedData));
         setLoading(false);
         return;
       }
 
-      // ✅ USE PROXY (IMPORTANT FIX)
+      // ✅ PROXY API CALL
       const response = await fetch(
         `/api/coingecko/api/v3/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
+      // ❌ HANDLE HTML / ERROR RESPONSE
       if (!response.ok) {
-        throw new Error("API Error");
+        const text = await response.text();
+        console.error("Server returned:", text);
+        throw new Error("API failed");
+      }
+
+      // ❌ HANDLE WRONG CONTENT TYPE
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("Not JSON:", text);
+        throw new Error("Invalid response");
       }
 
       const data = await response.json();
@@ -41,7 +61,8 @@ export const CoinContextProvider = ({ children }) => {
       setCoins(data);
 
       // ✅ SAVE CACHE
-      localStorage.setItem(`coins_${currency.name}`, JSON.stringify(data));
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(cacheTimeKey, Date.now());
 
     } catch (err) {
       console.error(err);
