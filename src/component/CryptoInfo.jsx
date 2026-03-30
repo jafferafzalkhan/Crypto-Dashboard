@@ -31,9 +31,9 @@ const data = [
 
 export default function CryptoInfo() {
   return (
-    <section className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white py-20 px-6">
+    <section className="bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white py-20 px-6">
 
-      {/* ❌ removed bg-fixed */}
+      {/*  removed bg-fixed */}
 
       <h2 className="text-3xl md:text-5xl font-bold text-center mb-16">
         Learn Crypto
@@ -45,7 +45,7 @@ export default function CryptoInfo() {
             key={index}
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }} // ✅ faster
+            transition={{ duration: 0.5 }} //  faster
             viewport={{ once: true }}
             className={`flex flex-col md:flex-row items-center gap-8 ${
               index % 2 !== 0 ? "md:flex-row-reverse" : ""
@@ -55,7 +55,7 @@ export default function CryptoInfo() {
             <img
               src={item.img}
               alt={item.title}
-              loading="lazy" // ✅ LAZY LOAD
+              loading="lazy" //  LAZY LOAD
               className="w-full md:w-1/2 rounded-xl shadow-lg object-cover h-60"
             />
 

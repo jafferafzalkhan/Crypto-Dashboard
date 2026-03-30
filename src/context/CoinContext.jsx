@@ -19,7 +19,7 @@ export const CoinContextProvider = ({ children }) => {
       setLoading(true);
       setError("");
 
-      // ✅ cache
+      //  cache
       const cachedData = localStorage.getItem(`coins_${currency.name}`);
       if (cachedData) {
         setCoins(JSON.parse(cachedData));
@@ -27,7 +27,7 @@ export const CoinContextProvider = ({ children }) => {
         return;
       }
 
-      // ✅ DIRECT API (NO PROXY)
+      //  DIRECT API (NO PROXY)
       const response = await fetch(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
@@ -40,7 +40,7 @@ export const CoinContextProvider = ({ children }) => {
 
       setCoins(data);
 
-      // ✅ cache save
+      //  cache save
       localStorage.setItem(`coins_${currency.name}`, JSON.stringify(data));
 
     } catch (err) {
