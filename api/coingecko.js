@@ -1,13 +1,15 @@
 export default async function handler(req, res) {
   try {
-    const url = `https://api.coingecko.com${req.url.replace('/api/coingecko', '')}`;
+    const { path = [] } = req.query;
+
+    const url = `https://api.coingecko.com/${path.join("/")}`;
 
     const response = await fetch(url);
 
     if (!response.ok) {
       const text = await response.text();
       return res.status(response.status).json({
-        error: "CoinGecko API error",
+        error: "CoinGecko error",
         details: text,
       });
     }
