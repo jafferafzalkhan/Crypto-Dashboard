@@ -2,11 +2,16 @@ export default async function handler(req, res) {
   try {
     const { path = [] } = req.query;
 
+    // ✅ FIX: remove extra "api/coingecko"
+    const cleanPath = path.join("/").replace(/^api\/coingecko\//, "");
+
     const query = req.url.split("?")[1] || "";
 
-    const url = `https://api.coingecko.com/${path.join("/")}${
+    const url = `https://api.coingecko.com/${cleanPath}${
       query ? `?${query}` : ""
     }`;
+
+    console.log("Final URL:", url); // debug
 
     const response = await fetch(url);
 
