@@ -37,13 +37,13 @@ export default function Favorites() {
     );
   };
 
-  // ✅ Safe filtering
+  //Safe filtering
   const favCoins = (allCoins || []).filter((coin) =>
     favorites.includes(coin.id)
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white px-4 sm:px-6 py-10">
+    <div className="min-h-screen bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 text-white px-4 sm:px-6 py-10">
 
       {/* HEADER */}
       <div className="text-center mb-10">
