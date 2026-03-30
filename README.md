@@ -7,7 +7,7 @@ CryptoHub allows users to track real-time crypto prices, explore market trends, 
 
 ## Live Demo
 
-https://cryptodashhub.netlify.app
+https://crypto-dashboard-seven-liard.vercel.app/
 
 ---
 
