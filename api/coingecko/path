@@ -2,7 +2,11 @@ export default async function handler(req, res) {
   try {
     const { path = [] } = req.query;
 
-    const url = `https://api.coingecko.com/${path.join("/")}`;
+    const query = req.url.split("?")[1] || "";
+
+    const url = `https://api.coingecko.com/${path.join("/")}${
+      query ? `?${query}` : ""
+    }`;
 
     const response = await fetch(url);
 
