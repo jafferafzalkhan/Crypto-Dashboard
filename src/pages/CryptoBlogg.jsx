@@ -1,22 +1,35 @@
 import React, { useContext } from "react";
 import { NewsContext } from "../context/NewsContext";
 
+const getImage = (url) => {
+  if (!url) return "https://picsum.photos/400/300";
+
+  if (url.includes("i2.wp.com")) {
+    return url.replace("https://i2.wp.com/", "https://");
+  }
+
+  return url;
+};
+
 export default function CryptoBlogg() {
   const { news, loading, error } = useContext(NewsContext);
 
   if (loading) {
     return (
       <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-4 py-10">
-        {Array(6).fill(0).map((_, i) => (
-          <div
-            key={i}
-            className="h-80 rounded-2xl bg-white/5 backdrop-blur-lg animate-pulse border border-white/10"
-          ></div>
-        ))}
+        {Array(6)
+          .fill(0)
+          .map((_, i) => (
+            <div
+              key={i}
+              className="h-80 rounded-2xl bg-white/5 backdrop-blur-lg animate-pulse border border-white/10"
+            ></div>
+          ))}
       </div>
     );
   }
 
+ 
   if (error) {
     return (
       <div className="text-center text-red-400 mt-20 text-lg">
@@ -35,24 +48,31 @@ export default function CryptoBlogg() {
       <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 
         {news
-          ?.filter(item => item && item.title)
-          .map((item) => (
+          ?.filter((item) => item && item.title)
+          .map((item, index) => (
             <div
-              key={item.article_id}
+              key={item.article_id || index}
               className="group rounded-2xl overflow-hidden bg-white/5 backdrop-blur-lg border border-white/10 hover:border-purple-500 transition duration-300 flex flex-col"
             >
 
+        
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src={item?.image_url || "https://picsum.photos/400/300"} // ✅ FIXED
-                  referrerPolicy="no-referrer" // ✅ FIXED
-                  alt={item?.title}
+                  src={getImage(item?.image_url)}
+                  alt={item?.title || "crypto news"}
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.target.onerror = null; // prevent loop
+                    e.target.src = "https://picsum.photos/400/300";
+                  }}
                   className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
                 />
 
                 <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent"></div>
               </div>
 
+              
               <div className="p-4 flex flex-col gap-3 grow">
 
                 <h2 className="text-white font-semibold text-lg leading-snug line-clamp-2 group-hover:text-purple-300 transition">

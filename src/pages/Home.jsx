@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react";
 import { CoinContext } from "../context/CoinContext";
 import { useNavigate } from "react-router-dom";
 import home2 from "../assets/home2.png";
@@ -9,21 +9,31 @@ import { FaHeart } from "react-icons/fa";
 export default function Home() {
   const [input, setInput] = useState("");
   const [text, setText] = useState("");
-  const [favorites, setFavorites] = useState([]); // ✅ NEW
+  const [favorites, setFavorites] = useState([]);
 
   const fullText = "Track Crypto Markets in ";
 
-  const { allCoins, currency } = useContext(CoinContext);
+  const { allCoins = [], currency } = useContext(CoinContext);
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-  useEffect(() => {
-    const fav = JSON.parse(localStorage.getItem("fav")) || [];
-    setFavorites(fav);
+ 
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("currentUser"));
+    } catch {
+      return null;
+    }
   }, []);
 
-  // typing animation
+ 
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const fav =
+      JSON.parse(localStorage.getItem(`fav_${currentUser.email}`)) || [];
+    setFavorites(fav);
+  }, [currentUser]);
+
   useEffect(() => {
     let i = 0;
     const interval = setInterval(() => {
@@ -31,11 +41,18 @@ export default function Home() {
       i++;
       if (i > fullText.length) clearInterval(interval);
     }, 50);
+
     return () => clearInterval(interval);
   }, []);
 
 
   const toggleFavorite = (coinId) => {
+    if (!currentUser) {
+      alert("Login first to save favorites");
+      navigate("/login");
+      return;
+    }
+
     let updatedFav;
 
     if (favorites.includes(coinId)) {
@@ -45,14 +62,15 @@ export default function Home() {
     }
 
     setFavorites(updatedFav);
-    localStorage.setItem("fav", JSON.stringify(updatedFav));
+    localStorage.setItem(
+      `fav_${currentUser.email}`,
+      JSON.stringify(updatedFav)
+    );
   };
 
+  const isFavorite = (coinId) => favorites.includes(coinId);
 
-  const isFavorite = (coinId) => {
-    return favorites.includes(coinId);
-  };
-
+  
   const searchHandler = (e) => {
     e.preventDefault();
 
@@ -62,7 +80,7 @@ export default function Home() {
       return;
     }
 
-    if (input.trim() === "") {
+    if (!input.trim()) {
       alert("Please enter a coin name");
       return;
     }
@@ -100,14 +118,14 @@ export default function Home() {
     navigate("/coin/bitcoin");
   };
 
-  const coinsToDisplay = allCoins.slice(0, 10);
+ 
+  const coinsToDisplay = (allCoins || []).slice(0, 10);
 
   return (
     <>
-      {/* HERO */}
+     
       <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-10 min-h-[90vh] w-full px-4 md:px-16 bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
 
-        {/* IMAGE */}
         <div className="w-full md:w-[55%] flex justify-center order-1 md:order-2 relative">
           <div className="absolute w-75 md:w-125 h-75 md:h-125 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
 
@@ -118,7 +136,7 @@ export default function Home() {
           />
         </div>
 
-        {/* TEXT */}
+        
         <div className="w-full md:w-[48%] flex flex-col items-center md:items-start text-center md:text-left order-2 md:order-1">
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-4 text-white leading-tight">
@@ -144,7 +162,10 @@ export default function Home() {
                 className="bg-black border border-white/20 h-11 w-full px-4 rounded-l-3xl text-white focus:outline-none"
               />
 
-              <button className="h-11 px-5 bg-purple-500 hover:bg-purple-600 rounded-r-3xl text-white">
+              <button
+                disabled={!input.trim()}
+                className="h-11 px-5 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 rounded-r-3xl text-white"
+              >
                 Search
               </button>
             </div>
@@ -168,10 +189,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* TICKER */}
       <CryptoTicker coins={coinsToDisplay} />
 
-      {/* TABLE */}
+      
       <div className="flex flex-col items-center text-center py-10 min-h-[86vh] w-full px-4 bg-linear-to-br from-purple-900 via-purple-900 to-slate-900">
 
         <div className="w-full max-w-3xl bg-purple-500 border-2 border-purple-800 shadow-2xl rounded-3xl p-3">
@@ -191,69 +211,79 @@ export default function Home() {
               </thead>
 
               <tbody>
-                {coinsToDisplay.map((coin, index) => (
-                  <tr
-                    key={coin.id}
-                    onClick={() => navigate(`/coin/${coin.id}`)}
-                    className="border-b border-white/10 hover:bg-purple-800/40 cursor-pointer hover:scale-[1.02] transition-all"
-                  >
-                    <td>{index + 1}</td>
+                {coinsToDisplay.map((coin, index) => {
+                  const priceChange = coin.price_change_percentage_24h ?? 0;
+                  const price = coin.current_price ?? 0;
+                  const marketCap = coin.market_cap ?? 0;
 
-                    <td className="flex items-center gap-2 py-3">
-                      <img src={coin.image} className="w-6 h-6" />
-                      {coin.name}
-                    </td>
-
-                    <td>
-                      {currency.symbol}
-                      {coin.current_price.toLocaleString()}
-                    </td>
-
-                    <td
-                      className={
-                        coin.price_change_percentage_24h > 0
-                          ? "text-green-400"
-                          : "text-red-400"
-                      }
+                  return (
+                    <tr
+                      key={coin.id || index}
+                      onClick={() => navigate(`/coin/${coin.id}`)}
+                      className="border-b border-white/10 hover:bg-purple-800/40 cursor-pointer hover:scale-[1.02] transition-all duration-300"
                     >
-                      {coin.price_change_percentage_24h.toFixed(2)}%
-                    </td>
+                      <td>{index + 1}</td>
 
-                    <td>
-                      {currency.symbol}
-                      {coin.market_cap.toLocaleString()}
-                    </td>
+                      <td className="flex items-center gap-2 py-3">
+                        <img
+                          src={coin.image}
+                          alt={coin.name}
+                          onError={(e) =>
+                            (e.target.src = "https://via.placeholder.com/24")
+                          }
+                          className="w-6 h-6"
+                        />
+                        {coin.name || "Unknown"}
+                      </td>
 
-                    {/*  FAVORITE */}
-                    <td>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(coin.id);
-                        }}
-                        className="text-xl hover:scale-125 transition-all"
+                      <td>
+                        {currency?.symbol || "$"}
+                        {price.toLocaleString()}
+                      </td>
+
+                      <td
+                        className={
+                          priceChange > 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }
                       >
-                        {isFavorite(coin.id) ? (
-                          <FaHeart className="text-purple-900" />
-                        ) : (
-                          <FaHeart className="text-gray-300" />
-                        )}
-                      </button>
-                    </td>
+                        {priceChange.toFixed(2)}%
+                      </td>
 
-                  </tr>
-                ))}
+                      <td>
+                        {currency?.symbol || "$"}
+                        {marketCap.toLocaleString()}
+                      </td>
+
+                      <td>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(coin.id);
+                          }}
+                          className="text-xl hover:scale-125 transition-all"
+                        >
+                          {isFavorite(coin.id) ? (
+                            <FaHeart className="text-red-500" />
+                          ) : (
+                            <FaHeart className="text-gray-300" />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
 
             </table>
           </div>
-
         </div>
       </div>
 
       <CryptoInfo />
 
-      {/* FLOAT ANIMATION */}
+      
       <style>
         {`
           @keyframes float {

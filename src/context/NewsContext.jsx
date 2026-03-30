@@ -1,64 +1,56 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect, useCallback } from "react";
 
 export const NewsContext = createContext();
 
 export const NewsProvider = ({ children }) => {
   const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const fetchNews = async () => {
+  
+  const fetchNews = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null); // Clear previous errors
 
-      const cache = JSON.parse(localStorage.getItem("newsCache"));
-
-      // ✅ USE CACHE (15 MIN)
-      if (cache && Date.now() - cache.time < 15 * 60 * 1000) {
-        setNews(cache.data);
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(
+      const response = await fetch(
         `https://newsdata.io/api/1/crypto?apikey=pub_1816f3a0faaf4c35986c2a105c2a31be`
       );
 
-      // 🚨 HANDLE 429
-      if (res.status === 429) {
-        console.warn("Rate limited");
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After");
+        const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000; // Default to 5 seconds if header is missing
+        setError(`Too Many Requests. Retrying in ${delay / 1000} seconds...`);
+        console.warn(`Rate limit hit. Retrying after ${delay / 1000} seconds.`);
 
-        if (cache) {
-          setNews(cache.data);
-        }
-
-        setLoading(false);
-        return;
+        // Wait for the specified time before potentially trying again
+        await new Promise(resolve => setTimeout(resolve, delay));
+        // You might want to re-call fetchNews here, or let the user manually retry
+        // For simplicity, we'll just set an error and stop for now.
+        throw new Error("Rate limit exceeded. Please try again later.");
       }
 
-      const data = await res.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
 
-      const results = data.results || [];
-
-      // 💾 SAVE CACHE
-      localStorage.setItem(
-        "newsCache",
-        JSON.stringify({
-          data: results,
-          time: Date.now(),
-        })
-      );
-
-      setNews(results);
+      const data = await response.json();
+      setNews(data.results || []);
 
     } catch (err) {
-      console.error("News Error:", err);
+      setError(err.message);
+      console.error("Failed to fetch news:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []); 
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]); // Depend on fetchNews. useCallback ensures it doesn't cause infinite loop.
 
   return (
-    <NewsContext.Provider value={{ news, loading, fetchNews }}>
+    <NewsContext.Provider value={{ news, loading, error, fetchNews }}>
       {children}
     </NewsContext.Provider>
   );

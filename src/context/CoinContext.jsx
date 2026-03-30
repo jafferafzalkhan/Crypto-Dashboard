@@ -6,6 +6,7 @@ export const CoinContextProvider = ({ children }) => {
 
   const [allCoins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [currency, setCurrency] = useState(() => {
     const savedCurrency = localStorage.getItem("currency");
@@ -17,57 +18,59 @@ export const CoinContextProvider = ({ children }) => {
   const fetchAllCoins = async () => {
     try {
       setLoading(true);
+      setError("");
 
-      const cache = JSON.parse(localStorage.getItem("coinsCache"));
+     
+      const cachedData = localStorage.getItem(`coins_${currency.name}`);
 
-      // ✅ CACHE (3 MIN)
-      if (cache && Date.now() - cache.time < 3 * 60 * 1000) {
-        setCoins(cache.data);
+      if (cachedData) {
+        setCoins(JSON.parse(cachedData));
         setLoading(false);
         return;
       }
 
-      const res = await fetch(
-        `/api/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency.name}&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h`
       );
 
-      // 🚨 RATE LIMIT HANDLE
-      if (res.status === 429) {
-        if (cache) setCoins(cache.data);
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error("API Error");
       }
 
-      const data = await res.json();
+      const data = await response.json();
 
-      localStorage.setItem(
-        "coinsCache",
-        JSON.stringify({
-          data,
-          time: Date.now(),
-        })
-      );
+      
+      localStorage.setItem(`coins_${currency.name}`, JSON.stringify(data));
 
       setCoins(data);
 
-    } catch (error) {
-      console.error("Coin Error:", error);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load coins 🚫");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const timer = setTimeout(fetchAllCoins, 800);
-    return () => clearTimeout(timer);
+    fetchAllCoins();
   }, [currency]);
 
+ 
   useEffect(() => {
     localStorage.setItem("currency", JSON.stringify(currency));
   }, [currency]);
 
+  const contextValue = {
+    allCoins,
+    currency,
+    setCurrency,
+    loading,
+    error
+  };
+
   return (
-    <CoinContext.Provider value={{ allCoins, currency, setCurrency, loading }}>
+    <CoinContext.Provider value={contextValue}>
       {children}
     </CoinContext.Provider>
   );
